@@ -1,0 +1,19 @@
+# Optional pre-commit / pre-push hooks. Install with `make hooks`.
+# Bypass with `git commit --no-verify` if needed (CI is the hard gate).
+
+pre-commit:
+  parallel: true
+  commands:
+    fmt:
+      glob: "*.go"
+      run: gofmt -l {staged_files} | (! grep .)
+    lint:
+      glob: "*.go"
+      run: golangci-lint run --new-from-rev=HEAD {staged_files}
+    secrets:
+      run: gitleaks protect --staged --no-banner --redact
+
+pre-push:
+  commands:
+    test:
+      run: make test

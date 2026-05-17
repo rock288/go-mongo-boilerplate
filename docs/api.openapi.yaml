@@ -1,0 +1,198 @@
+# Hand-written OpenAPI 3.1 stub for the sample features shipped in this
+# boilerplate. NOT auto-generated — keep in sync when you add endpoints.
+# Validate with: npx @redocly/cli lint docs/api.openapi.yaml
+openapi: 3.1.0
+info:
+  title: go-mongo-boilerplate
+  version: 0.1.0
+  description: |
+    Sample API surface for the boilerplate's `user` and `role` features.
+    Replace with your own endpoints when you fork.
+servers:
+  - url: http://localhost:8002
+    description: Local dev
+
+paths:
+  /healthz:
+    get:
+      summary: Liveness probe
+      responses:
+        "200": { description: Always 200 when the process is up }
+
+  /readyz:
+    get:
+      summary: Readiness probe
+      responses:
+        "200": { description: All critical checkers green }
+        "503": { description: One or more critical checkers failed N cycles }
+
+  /ping:
+    get:
+      summary: Smoke
+      responses:
+        "200":
+          description: pong
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg: { type: string, example: pong }
+
+  /api/v1/users/register:
+    post:
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterRequest" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegisterResponse" }
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: User already exists
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/users:
+    get:
+      summary: List users (cursor pagination)
+      parameters:
+        - in: query
+          name: cursor
+          schema: { type: string }
+          description: Opaque base64(JSON) cursor from previous page's next_cursor
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Page
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/UserResponse" }
+                  next_cursor: { type: string, nullable: true }
+                  has_more: { type: boolean }
+        "400":
+          description: Invalid cursor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/roles:
+    post:
+      summary: Create a role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateRoleRequest" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoleResponse" }
+        "409":
+          description: Role already exists
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    get:
+      summary: List roles
+      responses:
+        "200":
+          description: All roles
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/RoleResponse" }
+
+  /api/v1/roles/{id}:
+    get:
+      summary: Get role by id
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, description: Mongo ObjectID hex }
+      responses:
+        "200":
+          description: Role
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoleResponse" }
+        "400":
+          description: Invalid ID
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+components:
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, user_name, purpose]
+      properties:
+        email: { type: string, format: email }
+        user_name: { type: string, minLength: 3 }
+        purpose: { type: string }
+
+    RegisterResponse:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string }
+
+    UserResponse:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string }
+        user_name: { type: string }
+
+    CreateRoleRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 2 }
+        description: { type: string }
+
+    RoleResponse:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [message]
+          properties:
+            code: { type: string, example: BAD_REQUEST }
+            message: { type: string }

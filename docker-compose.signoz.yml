@@ -1,0 +1,57 @@
+version: "3.8"
+
+# Minimal SigNoz local stack for trace/metric ingestion via OTLP gRPC :4317.
+# UI at http://localhost:3301. For full feature parity (alerts, downsampling,
+# multi-tenant) use the upstream SigNoz compose:
+#   https://github.com/SigNoz/signoz/tree/main/deploy/docker
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.1.2-alpine
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "8123:8123"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    volumes:
+      - signoz-clickhouse:/var/lib/clickhouse
+
+  otel-collector:
+    image: signoz/signoz-otel-collector:0.111.27
+    restart: unless-stopped
+    depends_on:
+      - clickhouse
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    volumes:
+      - ./deploy/signoz/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+
+  query-service:
+    image: signoz/query-service:0.55.0
+    restart: unless-stopped
+    depends_on:
+      - clickhouse
+    environment:
+      ClickHouseUrl: tcp://clickhouse:9000
+      STORAGE: clickhouse
+    volumes:
+      - signoz-query:/var/lib/signoz
+
+  frontend:
+    image: signoz/frontend:0.55.0
+    restart: unless-stopped
+    depends_on:
+      - query-service
+    ports:
+      - "3301:3301"
+    environment:
+      FRONTEND_API_ENDPOINT: http://query-service:8080
+
+volumes:
+  signoz-clickhouse:
+  signoz-query:

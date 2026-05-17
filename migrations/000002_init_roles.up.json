@@ -1,0 +1,8 @@
+[
+  {
+    "createIndexes": "roles",
+    "indexes": [
+      {"key": {"name": 1}, "name": "idx_name", "unique": true}
+    ]
+  }
+]

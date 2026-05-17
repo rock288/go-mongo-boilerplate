@@ -1,0 +1,12 @@
+title = "go-mongo-boilerplate gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "skip safe placeholders shipped for onboarding"
+paths = [
+  '''\.env\.example$''',
+  '''README\.md$''',
+  '''docs/.*''',
+]

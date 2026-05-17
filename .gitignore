@@ -1,0 +1,28 @@
+# --- Build artifacts ---
+bin/
+cmd/server/server
+cmd/worker/worker
+cmd/migrate/migrate
+
+# --- Test & coverage ---
+coverage.out
+coverage.html
+
+# --- Secrets & env ---
+.env
+
+# --- Logs ---
+*.log
+
+# --- OS ---
+.DS_Store
+
+# --- IDE ---
+.idea/
+.vscode/*
+!.vscode/settings.json
+
+# --- Local-only docs ---
+plans/
+docs/adr/
+docs/journals/

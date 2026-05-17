@@ -1,0 +1,42 @@
+name: Bug report
+description: Report a defect in the boilerplate
+title: "bug: "
+labels: [bug]
+body:
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: OS + Go version (output of `go version`)
+      placeholder: "macOS 14.5, go1.25.0 darwin/arm64"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Minimal commands or code to trigger the issue
+      placeholder: |
+        1. `make run`
+        2. `curl localhost:8002/...`
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / stack trace
+      description: Paste relevant log output. Redact secrets.
+      render: shell

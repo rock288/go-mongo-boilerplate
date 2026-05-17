@@ -1,0 +1,3 @@
+[
+  {"dropIndexes": "roles", "index": "idx_name"}
+]

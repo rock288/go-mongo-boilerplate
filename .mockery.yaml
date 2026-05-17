@@ -1,0 +1,15 @@
+template: testify
+dir: "{{.InterfaceDir}}/mocks"
+pkgname: "mocks"
+filename: "mock_{{.InterfaceName | snakecase}}.go"
+structname: "{{.InterfaceName}}"
+force-file-write: true
+packages:
+  github.com/rock288/go-mongo-boilerplate/internal/user:
+    interfaces:
+      UserRepository:
+      UserService:
+  github.com/rock288/go-mongo-boilerplate/internal/role:
+    interfaces:
+      RoleRepository:
+      RoleService:

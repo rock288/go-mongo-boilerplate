@@ -1,0 +1,40 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - revive
+    - gosec
+    - ineffassign
+    - unused
+    - misspell
+
+  settings:
+    revive:
+      rules:
+        # Godoc-comment enforcement disabled for the boilerplate — re-enable
+        # in your downstream repo if you want full doc coverage.
+        - name: exported
+          disabled: true
+        - name: var-naming
+          disabled: false
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters: [errcheck, gosec]
+      - path: wire_gen\.go
+        linters: [unused, errcheck]
+      - path: mocks/
+        linters: [unused, revive]
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

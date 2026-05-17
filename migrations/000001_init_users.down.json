@@ -1,0 +1,4 @@
+[
+  {"dropIndexes": "users", "index": "idx_email"},
+  {"dropIndexes": "users", "index": "idx_uuid"}
+]

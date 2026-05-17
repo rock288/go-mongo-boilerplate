@@ -1,0 +1,72 @@
+server:
+  port: 8002
+  mode: debug
+  shutdown_timeout: 15s
+  read_header_timeout: 5s
+  read_timeout: 30s
+  write_timeout: 30s
+  idle_timeout: 120s
+  max_header_bytes: 1048576
+  body_limit_bytes: 1048576
+  handler_timeout: 30s
+  trusted_proxies: []
+
+mongo:
+  uri: mongodb://localhost:27017
+  database: go_mongo_boilerplate
+
+kafka:
+  brokers:
+    - localhost:9092
+  group_id: go-mongo-worker
+  topic: user-events
+  consumer:
+    max_retries: 3
+    retry_suffix: ".retry"
+    dlq_suffix: ".dlq"
+    retry_backoff_base: 1s
+    retry_backoff_max: 5m
+    dlq_max_payload_bytes: 65536
+
+redis:
+  addr: localhost:6379
+
+logger:
+  level: info
+  format: json
+
+observability:
+  enabled: false
+  endpoint: localhost:4317
+  insecure: true
+  ingestion_key: ""
+  service_name: go-mongo-boilerplate
+  environment: local
+  sample_ratio: 1.0
+  public_facing: false
+
+cors:
+  allowed_origins: []
+  allowed_methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+  allowed_headers: [Content-Type, Authorization]
+  allow_credentials: false
+  max_age_seconds: 600
+
+worker:
+  shutdown_timeout: 30s
+  health_port: 8081
+
+rate_limit:
+  per_ip:
+    rps: 100
+    burst: 200
+  global:
+    rps: 10000
+    burst: 20000
+  map_max_entries: 50000
+  map_ttl: 10m
+
+http_client:
+  timeout: 10s
+  max_idle_conns: 100
+  max_redirects: 5

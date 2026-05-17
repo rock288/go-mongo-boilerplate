@@ -98,6 +98,7 @@ make run                # http://localhost:8002/ping
 | Logger | `log/slog` + auto trace ID injection |
 | DI | [google/wire](https://github.com/google/wire) (compile-time) |
 | Kafka | [twmb/franz-go](https://github.com/twmb/franz-go) |
+| Queue (alt) | AWS SQS via [aws-sdk-go-v2](https://github.com/aws/aws-sdk-go-v2) — same retry/DLQ semantics, opt-in via `APP_SQS__CONSUMER__QUEUE_URL` |
 | Observability | OpenTelemetry SDK → [SigNoz](https://signoz.io) |
 | Resilience | `sony/gobreaker/v2`, `cenkalti/backoff/v5`, `golang.org/x/time/rate` |
 | Mocks | [vektra/mockery](https://github.com/vektra/mockery) v3 |
@@ -310,6 +311,8 @@ make scaffold name=X   # clone internal/user → internal/x with rename
 make docker-build      # 3 distroless images
 make docker-scan       # trivy (HIGH/CRITICAL fail)
 make signoz-up         # local SigNoz at :3301
+make localstack-up     # local SQS via LocalStack at :4566
+make sqs-create-queues # bootstrap dev queues (LocalStack only)
 ```
 
 ## 🪝 Pre-commit hooks (optional)

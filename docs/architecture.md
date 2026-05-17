@@ -29,6 +29,7 @@ go-mongo-boilerplate/
 ├── plans/              # Planning docs (local, gitignored)
 ├── Dockerfile          # Multi-stage distroless build
 ├── docker-compose.yml  # Local dev stack (mongo, kafka, redis)
+├── docker-compose.localstack.yml  # Optional SQS dev via LocalStack
 ├── Makefile            # Standard targets (run/build/test/lint/...)
 ├── lefthook.yml        # Optional pre-commit/pre-push hooks
 ├── .mockery.yaml       # Mock generation config
@@ -68,6 +69,7 @@ Cross-feature infrastructure. Bất kỳ feature nào cũng được phép impor
 | `httpserver/` | Gin server wrapper, timeouts (Read/Write/Idle), graceful shutdown |
 | `httpclient/` | `NewInternalClient` (trusted) và `NewExternalClient` (SSRF-safe, chặn loopback/RFC1918/metadata IPs) |
 | `kafka/` | Producer (auto-inject `traceparent`, idempotency key) + Consumer (retry/DLQ flow) + Header sanitizer |
+| `sqs/` | AWS SQS Producer + Consumer mirroring the Kafka layout. App-level retry queue with `MessageDelaySeconds` backoff (cap 900s) + DLQ + W3C trace propagation via `MessageAttributes`. Mock SQS API for tests via `SQSAPI` interface |
 | `health/` | Registry chạy nền cache kết quả `Checker`, expose `/healthz` (liveness) và `/readyz` (readiness, fail-after-N) |
 | `observability/` | OTel SDK init: tracing + metrics + log correlation, OTLP gRPC tới SigNoz |
 | `resilience/` | Retry với jittered exponential backoff (cenkalti/backoff v5) + named Circuit Breakers (sony/gobreaker v2) |

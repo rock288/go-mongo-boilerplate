@@ -133,19 +133,68 @@ defer span.End()
 
 **Adding a checker:** implement `Checker` (Name, Severity, Check) and call `registry.Register(c)` in `ProvideHealthRegistry`. Use `SeverityCritical` only for dependencies that genuinely block serving (e.g. primary database); use `SeverityDegraded` for things the service can run without (e.g. Kafka in the HTTP server).
 
-## Kafka
+## Message brokers
 
-**Contract:** `kafka.MessageHandler.Handle(ctx, record) error`. Return:
-- `nil` → offset committed
-- `errors.Is(err, context.Canceled)` → no republish, no commit (re-fetch on restart)
-- `errors.Is(err, kafka.ErrNonRetryable)` → straight to DLQ
-- any other error → retry topic with incremented `x-retry-count`; after `MaxRetries` → DLQ
+Two brokers ship side-by-side with **identical routing semantics**: handler returns nil/Canceled/ErrNonRetryable/other → commit/drop/DLQ/retry. Both inject W3C `traceparent` + `x-idempotency-key`, both run an in-process retry consumer that moves messages back to main, both use 3-attempt bounded republish.
 
-**Flow:** `topic.events` → handler fail → `topic.events.retry` → retry consumer (`<group>-retry`) sleeps `min(base*2^n, max)` → re-publish to `topic.events` → after `MaxRetries` → `topic.events.dlq`.
+### When to pick which
 
-**Header hygiene:** `SanitizeForRepublish` strips attacker-controlled `x-retry-count` / `x-error-reason` and drops malformed `traceparent`. `SanitizeError` truncates handler error strings to 256 ASCII chars before stamping `x-error-reason` on DLQ messages.
+| Use case | Kafka | SQS |
+|---|---|---|
+| High throughput (>10k msg/s) | ✅ | ⚠️ batch + multiple workers |
+| Strong ordering per key | ✅ partition | ❌ Standard (FIFO not shipped) |
+| AWS-only deployment | ⚠️ MSK costs | ✅ native, cheap |
+| Multi-cloud / portable | ✅ | ❌ AWS-only |
+| Replay history | ✅ retention | ❌ delete on ACK |
+| Low-volume notifications | ⚠️ overkill | ✅ |
+| Backoff > 15 min | ✅ no limit | ❌ `MessageDelaySeconds` capped at 900s |
 
-**Producer:** use `kafka.Producer.Publish(ctx, topic, key, value, opts...)`. Auto-injects `traceparent` + `x-idempotency-key`. Idempotency keys are caller-provided or UUID-defaulted; consumers should de-dupe via `GetIdempotencyKey(record)`.
+### Kafka
+
+**Contract:** `kafka.MessageHandler.Handle(ctx, record) error`.
+**Flow:** `topic` → handler fail → `topic.retry` → retry consumer (`<group>-retry`) sleeps `min(base*2^n, max)` → re-publish to `topic` → after `MaxRetries` → `topic.dlq`.
+**Producer:** `kafka.Producer.Publish(ctx, topic, key, value, opts...)`.
+
+### SQS (`internal/platform/sqs`)
+
+**Contract:** `sqs.MessageHandler.Handle(ctx, msg *types.Message) error` — same return semantics as Kafka.
+**Flow:** `events` → handler fail → `events-retry` (with `MessageDelaySeconds=backoff`) → retry consumer moves back to `events` → after `MaxRetries` → `events-dlq`.
+**Producer:** `sqs.Producer.Publish(ctx, queueURL, body, opts...)` — auto-injects traceparent + idempotency, rejects with `ErrTooManyAttributes` when caller exceeds 7 custom `MessageAttributes` (3 reserved).
+
+**Gotchas:**
+- `MessageDelaySeconds` AWS cap = 900s → `RetryBackoffMax` silently clamps. For longer backoffs, use Step Functions / external scheduler.
+- `MessageAttributes` limit = 10 keys; 3 reserved (`traceparent`, `tracestate`, `x-idempotency-key`), so callers get 7.
+- Standard queue ≠ Kafka partition: NO ordering guarantee. FIFO queues not shipped.
+- Publish-then-delete is non-atomic; rare crash window relies on SQS visibility timeout for redrive — consumer code MUST be idempotent via `GetIdempotencyKey(msg)`.
+- App-level retry queue is the primary mechanism. Native SQS redrive policy (`maxReceiveCount=5`) wired by `make sqs-create-queues` acts as a safety net for stuck/crashed messages.
+- Production: queues must be provisioned by Terraform/CDK. Worker only needs `sqs:Send/Receive/Delete/GetQueueUrl/ChangeMessageVisibility` IAM. Boilerplate does NOT auto-provision.
+
+**Hygiene shared by both:** `SanitizeForRepublish` strips attacker-controlled `x-retry-count`/`x-error-reason`, drops malformed `traceparent`. `SanitizeError` truncates to 256 ASCII chars before stamping `x-error-reason` on DLQ.
+
+### Adding an SQS-consuming feature
+
+1. Create `internal/<feature>/` with `event_handler_sqs.go` implementing `sqs.MessageHandler`:
+   ```go
+   type SQSEventHandler struct { logger *slog.Logger /* + deps */ }
+   func NewSQSEventHandler(logger *slog.Logger) *SQSEventHandler { return &SQSEventHandler{logger: logger} }
+   func (h *SQSEventHandler) Handle(ctx context.Context, msg *types.Message) error { /* ... */ }
+   ```
+2. Update `cmd/worker/providers.go`: replace `ProvideSQSHandler` to return the feature's handler:
+   ```go
+   func ProvideSQSHandler(h *<feature>.SQSEventHandler) platformsqs.MessageHandler { return h }
+   ```
+3. Add `<feature>.NewSQSEventHandler` to `cmd/worker/wire.go` ProviderSet.
+4. `make wire mocks test`.
+5. Set `APP_SQS__CONSUMER__QUEUE_URL` to enable. With QueueURL empty OR handler nil, worker logs skip and only Kafka goroutines run.
+
+### Local dev
+
+```bash
+make localstack-up        # start LocalStack on :4566
+make sqs-create-queues    # provision events / events-retry / events-dlq (LocalStack only)
+```
+
+Then set `APP_SQS__ENDPOINT=http://localhost:4566` and the printed `QUEUE_URL` in `.env`.
 
 ## Resilience
 

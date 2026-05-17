@@ -13,3 +13,8 @@ packages:
     interfaces:
       RoleRepository:
       RoleService:
+  github.com/rock288/go-mongo-boilerplate/internal/platform/sqs:
+    interfaces:
+      SQSAPI:
+      Producer:
+      MessageHandler:

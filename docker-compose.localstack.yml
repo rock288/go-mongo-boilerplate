@@ -1,0 +1,15 @@
+# Optional LocalStack dev stack for the SQS feature.
+# Start: make localstack-up
+# Bootstrap dev queues: make sqs-create-queues
+services:
+  localstack:
+    image: localstack/localstack:3
+    container_name: localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=sqs
+      - DEFAULT_REGION=us-east-1
+      - PERSISTENCE=0
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"

@@ -51,9 +51,27 @@ Quick lookups for common failures.
 
 Logged with stack via `middleware.Recovery`. On SigNoz the span shows status=ERROR with the panic recorded as an exception event. `/readyz` does not flip — only repeated panics affect a checker.
 
+### SQS
+
+**Dashboards (CloudWatch):**
+- `ApproximateNumberOfMessagesVisible` — backlog depth
+- `ApproximateAgeOfOldestMessage` — alert at 5 min
+- DLQ depth — should be 0 in steady state; alert >0
+
+**Required IAM** on the worker role:
+- `sqs:SendMessage`, `:ReceiveMessage`, `:DeleteMessage`
+- `:GetQueueUrl`, `:ChangeMessageVisibility`
+- **NOT** `:CreateQueue` — queues provisioned by Terraform/CDK; boilerplate does not auto-provision
+
+**Common errors:**
+- `AWS.SimpleQueueService.NonExistentQueue` — `queue_url` wrong or queue not provisioned
+- Throttling: 300 ops/s per Standard queue; on throttle worker logs + backs off
+- `MessageDelaySeconds` capped at 900s — `RetryBackoffMax` clamps silently
+
 ## On-call quick links
 
 - SigNoz UI: `http://signoz.<env>.example.com` or `localhost:3301` for local
 - Mongo Atlas: `https://cloud.mongodb.com`
 - Kafka tooling: `docker exec -it <kafka> kafka-consumer-groups.sh --bootstrap-server localhost:9092`
-- Source: `https://github.com/<org>/go-mongo-boilerplate`
+- SQS CLI (LocalStack): `aws --endpoint-url=http://localhost:4566 sqs list-queues`
+- Source: `https://github.com/rock288/go-mongo-boilerplate`

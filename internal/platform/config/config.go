@@ -16,6 +16,7 @@ type Config struct {
 	Server        ServerConfig        `koanf:"server"`
 	Mongo         MongoConfig         `koanf:"mongo"`
 	Kafka         KafkaConfig         `koanf:"kafka"`
+	SQS           SQSConfig           `koanf:"sqs"`
 	Redis         RedisConfig         `koanf:"redis"`
 	Logger        LoggerConfig        `koanf:"logger"`
 	Observability ObservabilityConfig `koanf:"observability"`
@@ -58,6 +59,30 @@ type KafkaConsumerConfig struct {
 	RetryBackoffBase   time.Duration `koanf:"retry_backoff_base"`
 	RetryBackoffMax    time.Duration `koanf:"retry_backoff_max"`
 	DLQMaxPayloadBytes int           `koanf:"dlq_max_payload_bytes"`
+}
+
+// SQSConfig holds AWS SQS connection + consumer settings. Set
+// Consumer.QueueURL to enable the SQS consumer; leave empty to disable.
+type SQSConfig struct {
+	Region   string            `koanf:"region"`
+	Endpoint string            `koanf:"endpoint"` // override for LocalStack dev; empty = SDK default
+	Consumer SQSConsumerConfig `koanf:"consumer"`
+}
+
+// SQSConsumerConfig mirrors KafkaConsumerConfig with SQS-specific knobs.
+// MessageDelaySeconds (used by retry path) is capped at 900s by AWS;
+// RetryBackoffMax above this is silently clamped — see sqs.SQSMaxDelay.
+type SQSConsumerConfig struct {
+	QueueURL                 string        `koanf:"queue_url"`
+	MaxRetries               int           `koanf:"max_retries"`
+	RetrySuffix              string        `koanf:"retry_suffix"`
+	DLQSuffix                string        `koanf:"dlq_suffix"`
+	VisibilityTimeoutSeconds int32         `koanf:"visibility_timeout_seconds"`
+	WaitTimeSeconds          int32         `koanf:"wait_time_seconds"`
+	MaxMessages              int32         `koanf:"max_messages"`
+	RetryBackoffBase         time.Duration `koanf:"retry_backoff_base"`
+	RetryBackoffMax          time.Duration `koanf:"retry_backoff_max"`
+	DLQMaxPayloadBytes       int           `koanf:"dlq_max_payload_bytes"`
 }
 
 type RedisConfig struct {

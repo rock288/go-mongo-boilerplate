@@ -19,37 +19,49 @@ func InitializeWorker(cfgPath string) (*WorkerApp, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	observabilityConfig := ProvideObservabilityConfig(configConfig)
-	shutdown, cleanupObs, err := ProvideObservability(observabilityConfig)
-	if err != nil {
-		return nil, nil, err
-	}
 	loggerConfig := ProvideLoggerConfig(configConfig)
 	slogLogger := logger.New(loggerConfig)
 	kafkaConfig := ProvideKafkaConfig(configConfig)
-	mainClient, cleanupMain, err := ProvideMainConsumer(kafkaConfig)
+	mainClient, cleanup, err := ProvideMainConsumer(kafkaConfig)
 	if err != nil {
-		cleanupObs()
 		return nil, nil, err
 	}
-	retryClient, cleanupRetry, err := ProvideRetryConsumer(kafkaConfig)
+	retryClient, cleanup2, err := ProvideRetryConsumer(kafkaConfig)
 	if err != nil {
-		cleanupMain()
-		cleanupObs()
+		cleanup()
 		return nil, nil, err
 	}
-	producerClient, cleanupProducer, err := ProvideProducerClient(kafkaConfig)
+	producerClient, cleanup3, err := ProvideProducerClient(kafkaConfig)
 	if err != nil {
-		cleanupRetry()
-		cleanupMain()
-		cleanupObs()
+		cleanup2()
+		cleanup()
 		return nil, nil, err
 	}
 	producer := ProvideProducer(producerClient)
 	eventHandler := user.NewEventHandler(slogLogger)
 	messageHandler := ProvideMessageHandler(eventHandler)
+	sqsConfig := ProvideSQSConfig(configConfig)
+	sqsClient, cleanup4, err := ProvideSQSClient(sqsConfig)
+	if err != nil {
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	sqsProducer := ProvideSQSProducer(sqsClient)
+	sqsMessageHandler := ProvideSQSHandler()
+	sqsChecker := ProvideSQSChecker()
 	kafkaChecker := ProvideKafkaChecker()
-	registry := ProvideHealthRegistry(kafkaChecker)
+	registry := ProvideHealthRegistry(kafkaChecker, sqsChecker, configConfig)
+	observabilityConfig := ProvideObservabilityConfig(configConfig)
+	shutdown, cleanup5, err := ProvideObservability(observabilityConfig)
+	if err != nil {
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
 	workerApp := &WorkerApp{
 		Config:       configConfig,
 		Logger:       slogLogger,
@@ -57,14 +69,19 @@ func InitializeWorker(cfgPath string) (*WorkerApp, func(), error) {
 		RetryClient:  retryClient,
 		Producer:     producer,
 		Handler:      messageHandler,
+		SQSClient:    sqsClient,
+		SQSProducer:  sqsProducer,
+		SQSHandler:   sqsMessageHandler,
+		SQSChecker:   sqsChecker,
 		Health:       registry,
 		KafkaChecker: kafkaChecker,
 		Shutdown:     shutdown,
 	}
 	return workerApp, func() {
-		cleanupProducer()
-		cleanupRetry()
-		cleanupMain()
-		cleanupObs()
+		cleanup5()
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
 	}, nil
 }

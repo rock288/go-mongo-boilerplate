@@ -1,6 +1,7 @@
 .PHONY: run worker build mocks wire test test-cov test-race lint vuln secrets ci \
         migrate-up migrate-down migrate-version hooks scaffold \
-        docker-build docker-scan signoz-up signoz-down tidy clean
+        docker-build docker-scan signoz-up signoz-down \
+        localstack-up localstack-down sqs-create-queues tidy clean
 
 MODULE  := $(shell go list -m)
 BIN_DIR := bin
@@ -77,6 +78,16 @@ signoz-up:
 
 signoz-down:
 	docker-compose -f docker-compose.signoz.yml down
+
+localstack-up:
+	docker compose -f docker-compose.localstack.yml up -d
+
+localstack-down:
+	docker compose -f docker-compose.localstack.yml down
+
+# Bootstrap dev SQS queues on LocalStack. Production: manage via Terraform/CDK.
+sqs-create-queues:
+	scripts/sqs-create-dev-queues.sh
 
 ci: lint test test-race vuln secrets
 

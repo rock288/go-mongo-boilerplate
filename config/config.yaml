@@ -28,6 +28,22 @@ kafka:
     retry_backoff_max: 5m
     dlq_max_payload_bytes: 65536
 
+# Optional second message broker. Leave consumer.queue_url empty to disable.
+sqs:
+  region: us-east-1
+  endpoint: ""  # set to http://localhost:4566 for LocalStack dev
+  consumer:
+    queue_url: ""  # full URL — boilerplate does NOT auto-provision
+    max_retries: 3
+    retry_suffix: "-retry"
+    dlq_suffix: "-dlq"
+    visibility_timeout_seconds: 30
+    wait_time_seconds: 20
+    max_messages: 10
+    retry_backoff_base: 5s
+    retry_backoff_max: 15m   # SQS MessageDelaySeconds caps at 900s
+    dlq_max_payload_bytes: 65536
+
 redis:
   addr: localhost:6379
 

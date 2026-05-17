@@ -3,10 +3,22 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/rock288/go-mongo-boilerplate)](https://goreportcard.com/report/github.com/rock288/go-mongo-boilerplate)
 ![Go Version](https://img.shields.io/badge/go-1.25%2B-00ADD8?logo=go&logoColor=white)
 ![Maintenance](https://img.shields.io/badge/Maintenance%20Level-Actively%20Maintained-brightgreen)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/rock288/go-mongo-boilerplate?style=social)](https://github.com/rock288/go-mongo-boilerplate/stargazers)
 
-> A production-leaning Go service template — **Gin + MongoDB v2 + Kafka + OpenTelemetry**, wired with `google/wire`, mocked with `mockery v3`, packaged as distroless Docker.
+> Production-grade Go microservice template — **Gin + MongoDB v2 + Kafka/SQS + OpenTelemetry**, wired with `google/wire`, mocked with `mockery v3`, shipped as distroless Docker.
 
-Clone, rename the module path, add your feature package — you have a service that already knows how to log with trace IDs, retry Kafka messages into a DLQ, scrub SSRF-unsafe outbound calls, and pass a readiness probe.
+[**Use this template →**](https://github.com/rock288/go-mongo-boilerplate/generate)
+
+Clone, rename the module path, run `make scaffold name=Order` — you have a service that already knows how to log with trace IDs, retry messages into a DLQ across Kafka or SQS, scrub SSRF-unsafe outbound calls, and pass a readiness probe.
+
+## 🎯 Why this template
+
+Most Go boilerplates solve one piece. This one bundles the boring parts you'd otherwise reinvent on day 4 of every project, with strong opinions on the trade-offs:
+
+- **Real observability out of the box** — slog auto-injects `trace_id`/`span_id`, Mongo has a custom OTel `CommandMonitor` (no official package exists yet), Kafka/SQS propagate W3C `traceparent` end-to-end. Plug into SigNoz or any OTLP collector.
+- **Retry / DLQ done right on both brokers** — Kafka and SQS ship with identical 3-queue (`main` / `.retry` / `.dlq`) routing, idempotency key auto-generation, attacker-controlled header sanitization, and a sample-on-failure rule so retries always show on dashboards.
+- **AI-driven development ready** — `CLAUDE.md` + `AGENTS.md` give Claude Code / Cursor / Aider the conventions, patterns, and "add a feature" walkthrough so agents stop cargo-culting and start matching your repo's style.
 
 ## ✨ What you get
 
@@ -14,13 +26,14 @@ Clone, rename the module path, add your feature package — you have a service t
 - 🔌 **Compile-time DI** — `google/wire`; DI errors caught at build time, no runtime reflection
 - 🧪 **Test-ready** — `mockery v3` mocks generated, table-driven examples, race detector target, file-per-production-file layout
 - 🗄️ **MongoDB v2** — new official driver, custom OTel `CommandMonitor`, JSON migrations
-- 📨 **Kafka with retry/DLQ** — `twmb/franz-go`, jittered backoff, sanitized headers, W3C trace propagation
+- 📨 **Kafka + SQS with retry/DLQ** — `twmb/franz-go` and `aws-sdk-go-v2`, jittered backoff, sanitized headers, W3C trace propagation, identical handler contract
 - 🔭 **Observability** — OTel SDK → SigNoz (self-host or cloud); slog auto-inject `trace_id`/`span_id`
 - 🛡️ **Resilience built-in** — circuit breaker (gobreaker v2), retry (backoff v5), rate limiter, SSRF-safe HTTP client
 - ❤️ **Health split** — `/healthz` (liveness) vs `/readyz` (readiness, fail-after-N)
 - ⚙️ **Config** — `koanf` YAML + `APP_*` env overrides, boot-time validation
 - 🐳 **Distroless Docker** — multi-stage, `TARGET=server|worker|migrate`, healthcheck via binary subcommand
 - 🔐 **Supply-chain hygiene** — `govulncheck`, `gitleaks`, `trivy` in `make ci`
+- 🤖 **AI-agent friendly** — `CLAUDE.md`, `AGENTS.md`, `make scaffold name=X` to clone a feature template
 
 ## 🗺️ Architecture at a glance
 

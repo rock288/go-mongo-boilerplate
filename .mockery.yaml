@@ -5,6 +5,7 @@ filename: "mock_{{.InterfaceName | snakecase}}.go"
 structname: "{{.InterfaceName}}"
 force-file-write: true
 packages:
+  # feature:samples:start
   github.com/rock288/go-mongo-boilerplate/internal/user:
     interfaces:
       UserRepository:
@@ -13,8 +14,11 @@ packages:
     interfaces:
       RoleRepository:
       RoleService:
+  # feature:samples:end
+  # feature:sqs:start
   github.com/rock288/go-mongo-boilerplate/internal/platform/sqs:
     interfaces:
       SQSAPI:
       Producer:
       MessageHandler:
+  # feature:sqs:end

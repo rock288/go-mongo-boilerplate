@@ -8,16 +8,31 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	// feature:kafka:start
 	"github.com/twmb/franz-go/pkg/kgo"
+	// feature:kafka:end
 	"golang.org/x/sync/errgroup"
 
 	"github.com/rock288/go-mongo-boilerplate/internal/platform/config"
 	"github.com/rock288/go-mongo-boilerplate/internal/platform/health"
+
+	// feature:kafka:start
 	platformkafka "github.com/rock288/go-mongo-boilerplate/internal/platform/kafka"
+	// feature:kafka:end
+	// feature:observability:start
 	"github.com/rock288/go-mongo-boilerplate/internal/platform/observability"
+	// feature:observability:end
+	// feature:sqs:start
 	platformsqs "github.com/rock288/go-mongo-boilerplate/internal/platform/sqs"
+	// feature:sqs:end
+	// feature:kafka:start
+	// feature:samples:start
 	"github.com/rock288/go-mongo-boilerplate/internal/user"
+	// feature:samples:end
+	// feature:kafka:end
 )
+
+// feature:kafka:start
 
 // MainClient wraps the primary consumer client.
 type MainClient struct{ *kgo.Client }
@@ -28,31 +43,62 @@ type RetryClient struct{ *kgo.Client }
 // ProducerClient wraps the producer used for retry/DLQ republish.
 type ProducerClient struct{ *kgo.Client }
 
+// feature:kafka:end
+
+// feature:sqs:start
+
 // SQSClient wraps the SQS API for Wire (distinguishable from raw SQSAPI).
 type SQSClient struct{ platformsqs.SQSAPI }
 
+// feature:sqs:end
+
 // WorkerApp bundles dependencies needed to consume Kafka + SQS events.
 type WorkerApp struct {
-	Config       *config.Config
-	Logger       *slog.Logger
-	MainClient   MainClient
-	RetryClient  RetryClient
-	Producer     platformkafka.Producer
-	Handler      platformkafka.MessageHandler
-	SQSClient    SQSClient
-	SQSProducer  platformsqs.Producer
-	SQSHandler   platformsqs.MessageHandler // may be nil — see ProvideSQSHandler
-	SQSChecker   *health.SQSChecker
-	Health       *health.Registry
+	Config *config.Config
+	Logger *slog.Logger
+	// feature:kafka:start
+	MainClient  MainClient
+	RetryClient RetryClient
+	Producer    platformkafka.Producer
+	// feature:samples:start
+	Handler platformkafka.MessageHandler
+	// feature:samples:end
+	// feature:kafka:end
+	// feature:sqs:start
+	SQSClient   SQSClient
+	SQSProducer platformsqs.Producer
+	SQSHandler  platformsqs.MessageHandler // may be nil — see ProvideSQSHandler
+	SQSChecker  *health.SQSChecker
+	// feature:sqs:end
+	Health *health.Registry
+	// feature:kafka:start
 	KafkaChecker *health.KafkaChecker
-	Shutdown     observability.Shutdown
+	// feature:kafka:end
+	// feature:observability:start
+	Shutdown observability.Shutdown
+	// feature:observability:end
 }
 
-func ProvideKafkaConfig(c *config.Config) config.KafkaConfig                 { return c.Kafka }
-func ProvideLoggerConfig(c *config.Config) config.LoggerConfig               { return c.Logger }
-func ProvideObservabilityConfig(c *config.Config) config.ObservabilityConfig { return c.Observability }
-func ProvideWorkerConfig(c *config.Config) config.WorkerConfig               { return c.Worker }
-func ProvideSQSConfig(c *config.Config) config.SQSConfig                     { return c.SQS }
+// feature:kafka:start
+func ProvideKafkaConfig(c *config.Config) config.KafkaConfig { return c.Kafka }
+
+// feature:kafka:end
+func ProvideLoggerConfig(c *config.Config) config.LoggerConfig { return c.Logger }
+
+// feature:observability:start
+func ProvideObservabilityConfig(c *config.Config) config.ObservabilityConfig {
+	return c.Observability
+}
+
+// feature:observability:end
+func ProvideWorkerConfig(c *config.Config) config.WorkerConfig { return c.Worker }
+
+// feature:sqs:start
+func ProvideSQSConfig(c *config.Config) config.SQSConfig { return c.SQS }
+
+// feature:sqs:end
+
+// feature:observability:start
 
 // ProvideObservability initialises OTel for the worker process.
 func ProvideObservability(cfg config.ObservabilityConfig) (observability.Shutdown, func(), error) {
@@ -67,6 +113,10 @@ func ProvideObservability(cfg config.ObservabilityConfig) (observability.Shutdow
 	}
 	return shutdown, cleanup, nil
 }
+
+// feature:observability:end
+
+// feature:kafka:start
 
 // ProvideMainConsumer creates the primary consumer.
 func ProvideMainConsumer(cfg config.KafkaConfig) (MainClient, func(), error) {
@@ -105,15 +155,23 @@ func ProvideProducer(c ProducerClient) platformkafka.Producer {
 	return platformkafka.NewProducerWrapper(c.Client)
 }
 
+// feature:samples:start
+
 // ProvideMessageHandler binds the user.EventHandler into the kafka contract.
 func ProvideMessageHandler(h *user.EventHandler) platformkafka.MessageHandler {
 	return h
 }
 
+// feature:samples:end
+
 // ProvideKafkaChecker exposes the worker's poll heartbeat for /readyz.
 func ProvideKafkaChecker() *health.KafkaChecker {
 	return health.NewKafkaChecker(30 * time.Second)
 }
+
+// feature:kafka:end
+
+// feature:sqs:start
 
 // ProvideSQSChecker exposes the SQS consumer's poll heartbeat for /readyz.
 // Registered as SeverityDegraded — see internal/platform/health/sqs.go.
@@ -146,13 +204,28 @@ func ProvideSQSHandler() platformsqs.MessageHandler {
 	return nil
 }
 
+// feature:sqs:end
+
 // ProvideHealthRegistry registers Kafka + (when configured) SQS heartbeat checkers.
-func ProvideHealthRegistry(k *health.KafkaChecker, s *health.SQSChecker, cfg *config.Config) *health.Registry {
+func ProvideHealthRegistry(
+	// feature:kafka:start
+	k *health.KafkaChecker,
+	// feature:kafka:end
+	// feature:sqs:start
+	s *health.SQSChecker,
+	// feature:sqs:end
+	cfg *config.Config,
+) *health.Registry {
 	r := health.NewRegistry()
+	// feature:kafka:start
 	r.Register(k)
+	// feature:kafka:end
+	// feature:sqs:start
 	if cfg.SQS.Consumer.QueueURL != "" {
 		r.Register(s)
 	}
+	// feature:sqs:end
+	_ = cfg
 	return r
 }
 
@@ -170,6 +243,8 @@ func (w *WorkerApp) Run(ctx context.Context) error {
 
 	g, gctx := errgroup.WithContext(ctx)
 
+	// feature:kafka:start
+	// feature:samples:start
 	// Kafka main consumer.
 	g.Go(func() error {
 		return platformkafka.Consume(gctx, w.MainClient.Client, w.Handler, w.Logger, platformkafka.ConsumeOptions{
@@ -178,11 +253,14 @@ func (w *WorkerApp) Run(ctx context.Context) error {
 			Heartbeat: w.KafkaChecker.Heartbeat,
 		})
 	})
+	// feature:samples:end
 	// Kafka retry consumer.
 	g.Go(func() error {
 		return platformkafka.ConsumeRetry(gctx, w.RetryClient.Client, w.Producer, w.Config.Kafka.Consumer, w.Logger, w.KafkaChecker.Heartbeat)
 	})
+	// feature:kafka:end
 
+	// feature:sqs:start
 	// SQS — opt-in. Skip if not configured or no handler wired.
 	if w.Config.SQS.Consumer.QueueURL != "" && w.SQSHandler != nil {
 		g.Go(func() error {
@@ -199,6 +277,7 @@ func (w *WorkerApp) Run(ctx context.Context) error {
 		w.Logger.Info("SQS consumer skipped — queue_url empty or handler nil",
 			slog.String("queue_url", w.Config.SQS.Consumer.QueueURL))
 	}
+	// feature:sqs:end
 
 	err := g.Wait()
 

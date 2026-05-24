@@ -55,49 +55,98 @@ Topic name is illustrative — default in `config/config.yaml` is `user-events`;
 
 ## 🚀 Use as a template
 
+**Recommended — interactive bootstrap CLI:**
+
 ```bash
 # 1. Clone (or "Use this template" on GitHub)
 git clone https://github.com/<you>/go-mongo-boilerplate my-service
 cd my-service
 
-# 2. Rename the module path everywhere (Wire/mockery files reference it)
+# 2. Run the bootstrap — rename module, pick features to keep, regen wire/mocks.
+#    Self-destructs after a successful run.
+make init                    # or: cd cmd/init && go run . --root=../..
+```
+
+The CLI lets you keep/drop Kafka, SQS, Observability (OTel/SigNoz), and the user/role sample features. Pass `--non-interactive` with `--no-kafka` / `--no-sqs` / `--no-observability` / `--no-samples` and `--module=github.com/you/svc` to script it.
+
+**One-shot.** To re-add a feature you stripped, copy the relevant block from the upstream template repo — there is no rollback.
+
+<details><summary><strong>Example: interactive run</strong></summary>
+
+```text
+$ make init
+cd cmd/init && go run . --root=../..
+
+┌ New module path ────────────────────────────────────────┐
+│ > github.com/acme/orderservice                          │
+│   e.g. github.com/yourorg/your-service                  │
+└─────────────────────────────────────────────────────────┘
+
+┌ Features to keep ───────────────────────────────────────┐
+│ Toggle to KEEP; unchecked items are stripped            │
+│   [✓] Kafka (message broker)                            │
+│   [ ] AWS SQS (second message broker)                   │
+│   [✓] Observability (OTel + SigNoz)                     │
+│   [✓] Sample features (user, role)                      │
+└─────────────────────────────────────────────────────────┘
+
+wire: github.com/acme/orderservice/cmd/server: wrote …/cmd/server/wire_gen.go
+wire: github.com/acme/orderservice/cmd/worker: wrote …/cmd/worker/wire_gen.go
+mockery v3.7.0 — wrote 4 mocks
+
+✓ Bootstrap complete
+  Module: github.com/acme/orderservice
+  Features kept:    kafka, observability, samples
+  Features removed: sqs
+
+Next steps:
+  make migrate-up   # apply Mongo migrations
+  make run          # start the HTTP server
+  make worker       # start the message consumer
+```
+
+</details>
+
+<details><summary><strong>Example: scriptable / CI</strong></summary>
+
+```bash
+git clone https://github.com/rock288/go-mongo-boilerplate my-service
+cd my-service
+cd cmd/init && go run . --root=../.. \
+  --non-interactive --force \
+  --module=github.com/acme/orderservice \
+  --no-sqs --no-observability
+```
+
+</details>
+
+<details><summary><strong>Manual alternative</strong> (skips feature trim)</summary>
+
+```bash
 NEW_MODULE=github.com/<you>/my-service
 OLD_MODULE=github.com/rock288/go-mongo-boilerplate
 go mod edit -module=$NEW_MODULE
-# Portable in-place replace (works on macOS BSD sed and GNU sed)
 grep -rl "$OLD_MODULE" --include='*.go' \
   | xargs perl -pi -e "s|$OLD_MODULE|$NEW_MODULE|g"
-
-# 3. Reset git history (optional)
 rm -rf .git && git init && git add . && git commit -m "chore: init from boilerplate"
-
-# 4. Regenerate Wire + mocks
 make wire && make mocks && make test
 ```
 
-## ⚡ Quick start
+</details>
+
+**Full bootstrap guide** — toggle reference, troubleshooting, what `make init` actually does: see [`docs/bootstrap.md`](docs/bootstrap.md).
+
+### After init
 
 ```bash
-# 1. Copy env file
 cp .env.example .env
-
-# 2. Infra (mongo + kafka; redis is pre-wired in compose but not yet used by code)
-docker-compose up -d
-
-# 3. Install first-time tools (pin versions for reproducible builds)
-go mod download
-go install github.com/google/wire/cmd/wire@v0.7.0
-go install github.com/vektra/mockery/v3@v3.0.0
-go install -tags 'mongodb' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.18.1
-
-# 4. Generate → build → migrate → run
-make wire mocks
-make build
-make migrate-up
-make run                # http://localhost:8002/ping
+docker-compose up -d                           # mongo (+ kafka / SQS / signoz if kept)
+make migrate-up                                # apply Mongo migrations
+make run                                       # http://localhost:8002/ping
+make worker                                    # if you kept kafka or sqs
 ```
 
-> Tool versions above are suggestions — check each project's releases page and pin to whatever is current when you bootstrap.
+`make wire`, `make mocks`, `make test` already ran inside `make init`. The first-time tool installs (`wire`, `mockery v3`, `migrate`) are documented in [`docs/bootstrap.md`](docs/bootstrap.md#quickstart).
 
 ## 🛠️ Stack
 
@@ -198,6 +247,7 @@ APP_OBSERVABILITY__SAMPLE_RATIO=0.1 ./bin/server
 
 > Exception: `cmd/migrate` reads `MONGO_URI` / `MONGO_DATABASE` directly (no `APP_` prefix) so it can run without loading the koanf tree.
 
+<!-- feature:observability:start -->
 ## 🔭 Observability
 
 ```bash
@@ -225,7 +275,9 @@ APP_OBSERVABILITY__INSECURE=false
 APP_OBSERVABILITY__INGESTION_KEY=<key>
 APP_OBSERVABILITY__SAMPLE_RATIO=0.1
 ```
+<!-- feature:observability:end -->
 
+<!-- feature:kafka:start -->
 ## 📨 Kafka retry / DLQ
 
 Handler contract — return:
@@ -243,6 +295,7 @@ Handler contract — return:
 `<topic>` defaults to `user-events` (configurable via `APP_KAFKA__TOPIC`); suffixes `.retry` / `.dlq` come from `APP_KAFKA__CONSUMER__RETRY_SUFFIX` / `DLQ_SUFFIX`.
 
 Inbound `x-retry-count` / `x-error-reason` headers are stripped on republish to prevent attacker tampering. DLQ error reason is sanitized to 256 ASCII chars.
+<!-- feature:kafka:end -->
 
 ## 🌐 API (example)
 
@@ -301,13 +354,17 @@ readinessProbe:
   failureThreshold: 3
 ```
 
+<!-- feature:worker:start -->
 **Worker:** exposes a tiny HTTP listener on `APP_WORKER__HEALTH_PORT` (default `8081`) for the same probes.
+<!-- feature:worker:end -->
 
 ## 🧰 Make targets
 
 ```bash
 make run               # cmd/server on :8002
+# feature:worker:start
 make worker            # cmd/worker (Kafka consumer)
+# feature:worker:end
 make build             # server/worker/migrate → ./bin/ with version ldflags
 make migrate-up        # apply migrations
 make wire              # regenerate Wire DI graph
@@ -320,12 +377,18 @@ make vuln              # govulncheck
 make secrets           # gitleaks
 make ci                # lint + test + test-race + vuln + secrets
 make hooks             # install lefthook pre-commit / pre-push hooks
+# feature:samples:start
 make scaffold name=X   # clone internal/user → internal/x with rename
+# feature:samples:end
 make docker-build      # 3 distroless images
 make docker-scan       # trivy (HIGH/CRITICAL fail)
+# feature:observability:start
 make signoz-up         # local SigNoz at :3301
+# feature:observability:end
+# feature:sqs:start
 make localstack-up     # local SQS via LocalStack at :4566
 make sqs-create-queues # bootstrap dev queues (LocalStack only)
+# feature:sqs:end
 ```
 
 ## 🪝 Pre-commit hooks (optional)

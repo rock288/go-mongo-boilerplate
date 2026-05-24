@@ -13,7 +13,9 @@ import (
 	"syscall"
 	"time"
 
+	// feature:observability:start
 	"github.com/rock288/go-mongo-boilerplate/internal/platform/observability"
+	// feature:observability:end
 )
 
 var (
@@ -26,8 +28,10 @@ func main() {
 		os.Exit(runHealthcheck())
 	}
 
+	// feature:observability:start
 	observability.BuildVersion = version
 	observability.BuildCommit = commit
+	// feature:observability:end
 
 	cfgPath := os.Getenv("CONFIG_PATH")
 	if cfgPath == "" {
@@ -49,7 +53,9 @@ func main() {
 		slog.Int("port", app.Config.Server.Port),
 		slog.String("version", version),
 		slog.String("commit", commit),
+		// feature:observability:start
 		slog.Any("observability", app.Config.Observability),
+		// feature:observability:end
 	)
 
 	serverErr := make(chan error, 1)

@@ -1,0 +1,102 @@
+name: Init Matrix
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  init-matrix:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        combo:
+          - name: full
+            args: ""
+          - name: minimal
+            args: "--no-kafka --no-sqs --no-observability --no-samples"
+          - name: no-kafka
+            args: "--no-kafka"
+          - name: no-sqs
+            args: "--no-sqs"
+          - name: no-otel
+            args: "--no-observability"
+          - name: no-samples
+            args: "--no-samples"
+          - name: no-messaging
+            args: "--no-kafka --no-sqs"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Cache wire / mockery binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin
+          key: init-cli-deps-${{ runner.os }}-v1
+
+      - name: Install CLI deps
+        run: |
+          test -x "$HOME/go/bin/wire" || go install github.com/google/wire/cmd/wire@latest
+          test -x "$HOME/go/bin/mockery" || go install github.com/vektra/mockery/v3@latest
+          echo "$HOME/go/bin" >> "$GITHUB_PATH"
+
+      - name: Test cmd/init itself (once per matrix)
+        if: matrix.combo.name == 'full'
+        working-directory: cmd/init
+        run: go test ./...
+
+      - name: Run init (${{ matrix.combo.name }})
+        run: |
+          cd cmd/init && go run . --root=../.. --non-interactive --force \
+            --module=github.com/test/${{ matrix.combo.name }} \
+            ${{ matrix.combo.args }}
+
+      - name: Verify no marker leakage
+        run: |
+          if grep -rnE "feature:[a-z]+:(start|end)" \
+              --include="*.go" --include="*.yaml" --include="*.yml" \
+              --include="*.md" --include="Makefile" --include="Dockerfile" \
+              --include=".env.example" .; then
+            echo "::error::Residual feature markers found"
+            exit 1
+          fi
+
+      - name: Verify cmd/init removed
+        run: |
+          if [ -d cmd/init ]; then
+            echo "::error::cmd/init still exists after self-destruct"
+            exit 1
+          fi
+
+      - name: Verify worker cascade (no-messaging only)
+        if: matrix.combo.name == 'no-messaging' || matrix.combo.name == 'minimal'
+        run: |
+          if [ -d cmd/worker ]; then
+            echo "::error::cmd/worker should be removed when both kafka+sqs off"
+            exit 1
+          fi
+
+      - name: Verify huh not in root go.mod
+        run: |
+          if grep -q "charmbracelet/huh" go.mod; then
+            echo "::error::huh dep leaked into root go.mod"
+            exit 1
+          fi
+
+      - name: Verify docker-compose still valid
+        if: hashFiles('docker-compose.yml') != ''
+        run: docker compose config > /dev/null
+
+      - name: Build stripped project
+        run: go build ./...
+
+      - name: Test stripped project
+        run: go test -short ./...

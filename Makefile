@@ -1,4 +1,4 @@
-.PHONY: run worker build mocks wire test test-cov test-race lint vuln secrets ci \
+.PHONY: run worker build mocks wire test test-cov test-race lint vuln secrets ci init \
         migrate-up migrate-down migrate-version hooks scaffold \
         docker-build docker-scan signoz-up signoz-down \
         localstack-up localstack-down sqs-create-queues tidy clean
@@ -16,13 +16,21 @@ LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT)
 run:
 	go run ./cmd/server
 
+# feature:worker:start
 worker:
 	go run ./cmd/worker
+# feature:worker:end
+
+# Interactive bootstrap CLI. Self-destructs after a successful run.
+init:
+	cd cmd/init && go run . --root=../..
 
 build:
 	mkdir -p $(BIN_DIR)
 	go build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/server ./cmd/server
+# feature:worker:start
 	go build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/worker ./cmd/worker
+# feature:worker:end
 	go build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/migrate ./cmd/migrate
 
 migrate-up:
@@ -36,7 +44,9 @@ migrate-version:
 
 wire:
 	cd cmd/server && wire
+# feature:worker:start
 	cd cmd/worker && wire
+# feature:worker:end
 
 mocks:
 	mockery
@@ -66,19 +76,24 @@ secrets:
 
 docker-build:
 	docker build --build-arg TARGET=server  --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) -t $(IMAGE)-server:$(VERSION) .
+# feature:worker:start
 	docker build --build-arg TARGET=worker  --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) -t $(IMAGE)-worker:$(VERSION) .
+# feature:worker:end
 	docker build --build-arg TARGET=migrate --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) -t $(IMAGE)-migrate:$(VERSION) .
 
 docker-scan:
 	@command -v trivy >/dev/null || (echo "install trivy: brew install aquasecurity/trivy/trivy"; exit 1)
 	trivy image --severity CRITICAL,HIGH --exit-code 1 $(IMAGE)-server:$(VERSION)
 
+# feature:observability:start
 signoz-up:
 	docker-compose -f docker-compose.signoz.yml up -d
 
 signoz-down:
 	docker-compose -f docker-compose.signoz.yml down
+# feature:observability:end
 
+# feature:sqs:start
 localstack-up:
 	docker compose -f docker-compose.localstack.yml up -d
 
@@ -88,6 +103,7 @@ localstack-down:
 # Bootstrap dev SQS queues on LocalStack. Production: manage via Terraform/CDK.
 sqs-create-queues:
 	scripts/sqs-create-dev-queues.sh
+# feature:sqs:end
 
 ci: lint test test-race vuln secrets
 

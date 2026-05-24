@@ -33,6 +33,11 @@ linters:
         linters: [unused, errcheck]
       - path: mocks/
         linters: [unused, revive]
+      # cmd/init is a developer CLI: it intentionally reads user-supplied paths
+      # and shells out to wire/mockery/go — gosec's tainted-input rules apply
+      # to long-running services, not one-shot tools that self-destruct.
+      - path: cmd/init/
+        linters: [gosec]
 
 formatters:
   enable:

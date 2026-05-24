@@ -67,8 +67,11 @@ func InitializeServer(cfgPath string) (*ServerApp, func(), error) {
 var platformSet = wire.NewSet(config.Load, ProvideServerConfig,
 	ProvideMongoConfig,
 	ProvideLoggerConfig,
+
 	ProvideObservabilityConfig,
+
 	ProvideCORSConfig,
 	ProvideRateLimitConfig,
+
 	ProvideObservability, logger.New, database.NewMongoClient, database.NewDatabase, httpserver.New, ProvideHealthRegistry,
 )

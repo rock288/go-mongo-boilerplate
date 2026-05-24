@@ -2,7 +2,9 @@ package config
 
 import (
 	"fmt"
+	// feature:observability:start
 	"log/slog"
+	// feature:observability:end
 	"strings"
 	"time"
 
@@ -13,17 +15,25 @@ import (
 )
 
 type Config struct {
-	Server        ServerConfig        `koanf:"server"`
-	Mongo         MongoConfig         `koanf:"mongo"`
-	Kafka         KafkaConfig         `koanf:"kafka"`
-	SQS           SQSConfig           `koanf:"sqs"`
-	Redis         RedisConfig         `koanf:"redis"`
-	Logger        LoggerConfig        `koanf:"logger"`
+	Server ServerConfig `koanf:"server"`
+	Mongo  MongoConfig  `koanf:"mongo"`
+	// feature:kafka:start
+	Kafka KafkaConfig `koanf:"kafka"`
+	// feature:kafka:end
+	// feature:sqs:start
+	SQS SQSConfig `koanf:"sqs"`
+	// feature:sqs:end
+	Redis  RedisConfig  `koanf:"redis"`
+	Logger LoggerConfig `koanf:"logger"`
+	// feature:observability:start
 	Observability ObservabilityConfig `koanf:"observability"`
-	CORS          CORSConfig          `koanf:"cors"`
-	Worker        WorkerConfig        `koanf:"worker"`
-	RateLimit     RateLimitConfig     `koanf:"rate_limit"`
-	HTTPClient    HTTPClientConfig    `koanf:"http_client"`
+	// feature:observability:end
+	CORS CORSConfig `koanf:"cors"`
+	// feature:worker:start
+	Worker WorkerConfig `koanf:"worker"`
+	// feature:worker:end
+	RateLimit  RateLimitConfig  `koanf:"rate_limit"`
+	HTTPClient HTTPClientConfig `koanf:"http_client"`
 }
 
 type ServerConfig struct {
@@ -45,6 +55,8 @@ type MongoConfig struct {
 	Database string `koanf:"database"`
 }
 
+// feature:kafka:start
+
 type KafkaConfig struct {
 	Brokers  []string            `koanf:"brokers"`
 	GroupID  string              `koanf:"group_id"`
@@ -60,6 +72,10 @@ type KafkaConsumerConfig struct {
 	RetryBackoffMax    time.Duration `koanf:"retry_backoff_max"`
 	DLQMaxPayloadBytes int           `koanf:"dlq_max_payload_bytes"`
 }
+
+// feature:kafka:end
+
+// feature:sqs:start
 
 // SQSConfig holds AWS SQS connection + consumer settings. Set
 // Consumer.QueueURL to enable the SQS consumer; leave empty to disable.
@@ -85,6 +101,8 @@ type SQSConsumerConfig struct {
 	DLQMaxPayloadBytes       int           `koanf:"dlq_max_payload_bytes"`
 }
 
+// feature:sqs:end
+
 type RedisConfig struct {
 	Addr string `koanf:"addr"`
 }
@@ -93,6 +111,8 @@ type LoggerConfig struct {
 	Level  string `koanf:"level"`
 	Format string `koanf:"format"`
 }
+
+// feature:observability:start
 
 // ObservabilityConfig controls OpenTelemetry exporter wiring.
 // IngestionKey is redacted via slog.LogValuer when logged.
@@ -125,6 +145,8 @@ func (o ObservabilityConfig) LogValue() slog.Value {
 	)
 }
 
+// feature:observability:end
+
 type CORSConfig struct {
 	AllowedOrigins   []string `koanf:"allowed_origins"`
 	AllowedMethods   []string `koanf:"allowed_methods"`
@@ -133,10 +155,14 @@ type CORSConfig struct {
 	MaxAgeSeconds    int      `koanf:"max_age_seconds"`
 }
 
+// feature:worker:start
+
 type WorkerConfig struct {
 	ShutdownTimeout time.Duration `koanf:"shutdown_timeout"`
 	HealthPort      int           `koanf:"health_port"`
 }
+
+// feature:worker:end
 
 type RateLimitConfig struct {
 	PerIP         RateBucket    `koanf:"per_ip"`
@@ -193,12 +219,14 @@ func Load(path string) (*Config, error) {
 
 // Validate enforces invariants that prevent unsafe boot states.
 func (c *Config) Validate() error {
+	// feature:observability:start
 	if c.Observability.Enabled && !c.Observability.Insecure {
 		key := strings.TrimSpace(c.Observability.IngestionKey)
 		if key == "" || key == "changeme" || strings.HasPrefix(key, "<") {
 			return fmt.Errorf("observability: ingestion_key required when insecure=false")
 		}
 	}
+	// feature:observability:end
 	if c.CORS.AllowCredentials {
 		for _, o := range c.CORS.AllowedOrigins {
 			if o == "*" {

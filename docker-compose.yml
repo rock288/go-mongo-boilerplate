@@ -18,6 +18,7 @@ services:
     volumes:
       - redis-data:/data
 
+  # feature:kafka:start
   kafka:
     image: bitnami/kafka:3.7
     restart: unless-stopped
@@ -34,6 +35,7 @@ services:
       ALLOW_PLAINTEXT_LISTENER: "yes"
     volumes:
       - kafka-data:/bitnami/kafka
+  # feature:kafka:end
 
   app:
     build:
@@ -44,13 +46,19 @@ services:
         COMMIT: docker-compose
     depends_on:
       - mongo
+      # feature:kafka:start
       - kafka
+      # feature:kafka:end
     ports:
       - "8002:8002"
     environment:
       APP_MONGO__URI: mongodb://mongo:27017
+      # feature:kafka:start
       APP_KAFKA__BROKERS: kafka:9092
+      # feature:kafka:end
+      # feature:observability:start
       APP_OBSERVABILITY__ENABLED: "false"
+      # feature:observability:end
     healthcheck:
       test: ["CMD", "/app/app", "healthcheck"]
       interval: 10s
@@ -60,4 +68,6 @@ services:
 volumes:
   mongo-data:
   redis-data:
+  # feature:kafka:start
   kafka-data:
+  # feature:kafka:end

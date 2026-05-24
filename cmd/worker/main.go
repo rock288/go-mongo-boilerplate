@@ -9,7 +9,9 @@ import (
 	"os/signal"
 	"syscall"
 
+	// feature:observability:start
 	"github.com/rock288/go-mongo-boilerplate/internal/platform/observability"
+	// feature:observability:end
 )
 
 var (
@@ -18,8 +20,10 @@ var (
 )
 
 func main() {
+	// feature:observability:start
 	observability.BuildVersion = version
 	observability.BuildCommit = commit
+	// feature:observability:end
 
 	cfgPath := os.Getenv("CONFIG_PATH")
 	if cfgPath == "" {
@@ -36,7 +40,9 @@ func main() {
 	defer stop()
 
 	app.Logger.Info("worker starting",
+		// feature:kafka:start
 		slog.String("group", app.Config.Kafka.GroupID),
+		// feature:kafka:end
 		slog.String("version", version),
 		slog.String("commit", commit),
 	)

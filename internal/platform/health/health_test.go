@@ -84,48 +84,13 @@ func TestReadiness_RecoveryResetsCounter(t *testing.T) {
 	}
 }
 
-func TestCheckers_NameAndSeverityGetters(t *testing.T) {
+func TestMongoChecker_NameAndSeverity(t *testing.T) {
 	mongo := NewMongoChecker(nil)
 	if mongo.Name() != "mongo" {
 		t.Errorf("MongoChecker.Name() = %q", mongo.Name())
 	}
 	if mongo.Severity() != SeverityCritical {
 		t.Errorf("MongoChecker.Severity() = %v, want critical", mongo.Severity())
-	}
-
-	kafka := NewKafkaChecker(0) // 0 → defaults to 30s
-	if kafka.Name() != "kafka" {
-		t.Errorf("KafkaChecker.Name() = %q", kafka.Name())
-	}
-	if kafka.Severity() != SeverityDegraded {
-		t.Errorf("KafkaChecker.Severity() = %v, want degraded", kafka.Severity())
-	}
-
-	sqs := NewSQSChecker(0)
-	if sqs.Name() != "sqs" {
-		t.Errorf("SQSChecker.Name() = %q", sqs.Name())
-	}
-	if sqs.Severity() != SeverityDegraded {
-		t.Errorf("SQSChecker.Severity() = %v, want degraded", sqs.Severity())
-	}
-}
-
-func TestSQSChecker_HeartbeatLifecycle(t *testing.T) {
-	t.Parallel()
-
-	c := NewSQSChecker(100 * time.Millisecond)
-	if err := c.Check(context.Background()); err == nil {
-		t.Fatal("fresh checker should report no-poll-yet error")
-	}
-
-	c.Heartbeat()
-	if err := c.Check(context.Background()); err != nil {
-		t.Fatalf("post-heartbeat check failed: %v", err)
-	}
-
-	time.Sleep(250 * time.Millisecond)
-	if err := c.Check(context.Background()); err == nil {
-		t.Fatal("expected stale-poll error after staleAfter elapsed")
 	}
 }
 

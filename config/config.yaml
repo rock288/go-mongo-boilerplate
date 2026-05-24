@@ -15,6 +15,7 @@ mongo:
   uri: mongodb://localhost:27017
   database: go_mongo_boilerplate
 
+# feature:kafka:start
 kafka:
   brokers:
     - localhost:9092
@@ -27,7 +28,9 @@ kafka:
     retry_backoff_base: 1s
     retry_backoff_max: 5m
     dlq_max_payload_bytes: 65536
+# feature:kafka:end
 
+# feature:sqs:start
 # Optional second message broker. Leave consumer.queue_url empty to disable.
 sqs:
   region: us-east-1
@@ -43,6 +46,7 @@ sqs:
     retry_backoff_base: 5s
     retry_backoff_max: 15m   # SQS MessageDelaySeconds caps at 900s
     dlq_max_payload_bytes: 65536
+# feature:sqs:end
 
 redis:
   addr: localhost:6379
@@ -51,6 +55,7 @@ logger:
   level: info
   format: json
 
+# feature:observability:start
 observability:
   enabled: false
   endpoint: localhost:4317
@@ -60,6 +65,7 @@ observability:
   environment: local
   sample_ratio: 1.0
   public_facing: false
+# feature:observability:end
 
 cors:
   allowed_origins: []
@@ -68,9 +74,11 @@ cors:
   allow_credentials: false
   max_age_seconds: 600
 
+# feature:worker:start
 worker:
   shutdown_timeout: 30s
   health_port: 8081
+# feature:worker:end
 
 rate_limit:
   per_ip:

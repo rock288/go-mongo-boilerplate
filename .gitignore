@@ -1,5 +1,6 @@
 # --- Build artifacts ---
 bin/
+tmp/
 cmd/server/server
 cmd/worker/worker
 cmd/migrate/migrate

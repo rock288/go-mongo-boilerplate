@@ -6,15 +6,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 make run            # cmd/server on :8002
+make dev            # cmd/server with air hot-reload (auto-installed)
 # feature:worker:start
 make worker         # cmd/worker (Kafka consumer)
+make dev-worker     # cmd/worker with air hot-reload
 # feature:worker:end
 make build          # builds server, worker, migrate into ./bin/ with ldflags version
 make migrate-up     # apply migrations (also: migrate-down, migrate-version)
 make wire           # regenerate cmd/{server,worker}/wire_gen.go
 make mocks          # regenerate internal/*/mocks/ via mockery v3
-make test           # go test ./... with coverage.out
-make test-race      # go test -race ./...
+make test           # gotestsum (auto-installed) wrapping go test, writes coverage.out
+make test-race      # gotestsum -- -race
 make test-cov       # open HTML coverage report
 make lint           # golangci-lint (pinned, auto-installed)
 make vuln           # govulncheck ./...

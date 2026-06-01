@@ -220,8 +220,8 @@ Copy `internal/user/` as the canonical template.
 Unit tests only — go-kit style. Boilerplate ships canonical examples per pattern; copy them when adding real features. testcontainers + integration suites belong in YOUR repo (the one consuming this template), not in the template itself.
 
 ```bash
-make test       # go test ./...  (~5s, race-clean)
-make test-race  # explicit race detector
+make test       # gotestsum-formatted go test ./...  (~5s, race-clean) + coverage.out
+make test-race  # explicit race detector (gotestsum)
 make test-cov   # HTML coverage report
 ```
 
@@ -362,15 +362,17 @@ readinessProbe:
 
 ```bash
 make run               # cmd/server on :8002
+make dev               # cmd/server with air hot-reload (auto-installed)
 # feature:worker:start
 make worker            # cmd/worker (Kafka consumer)
+make dev-worker        # cmd/worker with air hot-reload
 # feature:worker:end
 make build             # server/worker/migrate → ./bin/ with version ldflags
 make migrate-up        # apply migrations
 make wire              # regenerate Wire DI graph
 make mocks             # regenerate mockery interfaces
-make test              # go test ./... + coverage.out
-make test-race         # race detector
+make test              # gotestsum (auto-installed) + coverage.out
+make test-race         # gotestsum -- -race
 make test-cov          # open HTML coverage report
 make lint              # golangci-lint (pinned, auto-installed)
 make vuln              # govulncheck

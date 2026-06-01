@@ -1,4 +1,4 @@
-.PHONY: run worker build mocks wire test test-cov test-race lint vuln secrets ci init \
+.PHONY: run dev dev-worker worker build mocks wire test test-cov test-race lint vuln secrets ci init \
         migrate-up migrate-down migrate-version hooks scaffold \
         docker-build docker-scan signoz-up signoz-down \
         localstack-up localstack-down sqs-create-queues tidy clean
@@ -10,15 +10,31 @@ COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 IMAGE   ?= go-mongo-boilerplate
 GOLANGCI_LINT_VERSION ?= v2.1.0
 GOLANGCI_LINT := $(shell go env GOPATH)/bin/golangci-lint
+GOTESTSUM_VERSION ?= v1.13.0
+AIR_VERSION       ?= v1.65.3
+GOTESTSUM := $(shell go env GOPATH)/bin/gotestsum
+AIR       := $(shell go env GOPATH)/bin/air
+TEST_FORMAT ?= pkgname
 
 LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT)
 
 run:
 	go run ./cmd/server
 
+$(AIR):
+	go install github.com/air-verse/air@$(AIR_VERSION)
+
+# Hot-reload server on file change (air rebuilds + restarts).
+dev: $(AIR)
+	$(AIR) -c .air.toml
+
 # feature:worker:start
 worker:
 	go run ./cmd/worker
+
+# Hot-reload worker on file change.
+dev-worker: $(AIR)
+	$(AIR) -c .air.worker.toml
 # feature:worker:end
 
 # Interactive bootstrap CLI. Self-destructs after a successful run.
@@ -51,14 +67,17 @@ wire:
 mocks:
 	mockery
 
-test:
-	go test ./... -coverprofile=coverage.out -covermode=atomic
+$(GOTESTSUM):
+	go install gotest.tools/gotestsum@$(GOTESTSUM_VERSION)
+
+test: $(GOTESTSUM)
+	$(GOTESTSUM) --format $(TEST_FORMAT) -- ./... -coverprofile=coverage.out -covermode=atomic
 
 test-cov: test
 	go tool cover -html=coverage.out -o coverage.html
 
-test-race:
-	go test -race -timeout=5m ./...
+test-race: $(GOTESTSUM)
+	$(GOTESTSUM) --format $(TEST_FORMAT) -- -race -timeout=5m ./...
 
 $(GOLANGCI_LINT):
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)

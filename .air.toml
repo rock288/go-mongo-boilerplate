@@ -1,0 +1,15 @@
+# air hot-reload config for cmd/server. Run via `make dev`.
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/server ./cmd/server"
+  bin = "./tmp/server"
+  include_ext = ["go", "yaml", "yml"]
+  exclude_dir = ["bin", "tmp", "cmd/init", "migrations", "docs", "plans"]
+  exclude_regex = ["_test\\.go"]
+  stop_on_error = true
+  delay = 1000
+
+[misc]
+  clean_on_exit = true

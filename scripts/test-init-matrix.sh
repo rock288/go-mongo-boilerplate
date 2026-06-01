@@ -69,6 +69,18 @@ for entry in "${COMBOS[@]}"; do
     continue
   fi
 
+  # air: server config always present; worker config rides the kafka+sqs cascade.
+  if [ ! -f "$dest/.air.toml" ]; then
+    echo "::error::.air.toml missing in $name"
+    fail=1
+    continue
+  fi
+  if [[ "$args" == *"--no-kafka"* && "$args" == *"--no-sqs"* ]] && [ -f "$dest/.air.worker.toml" ]; then
+    echo "::error::.air.worker.toml not removed by worker cascade in $name"
+    fail=1
+    continue
+  fi
+
   if ! (cd "$dest" && go build ./... && go test -short ./...); then
     echo "::error::build/test failed in $name"
     fail=1

@@ -87,7 +87,7 @@ func main() {
 
 	// 3. Cascade: worker dies when both brokers go.
 	if *noKafka && *noSQS {
-		if err := deletePaths(root, []string{"cmd/worker"}); err != nil {
+		if err := deletePaths(root, []string{"cmd/worker", ".air.worker.toml"}); err != nil {
 			log.Fatalf("cascade-delete cmd/worker: %v", err)
 		}
 		for _, f := range WorkerMarkerFiles {
